@@ -1,0 +1,83 @@
+flowchart LR
+  subgraph CLIENT["Client"]
+    WEB["Architect 2.0 Web App\nBuilder + Developer Controls"]
+  end
+
+  subgraph EDGE["Edge / Realtime"]
+    CDN["CDN + WAF + Load Balancer"]
+    PREVIEW["Preview Proxy\nSigned preview URLs + WebSocket forwarding"]
+    STREAM["Realtime Gateway\nWebSocket / SSE"]
+  end
+
+  subgraph CONTROL["Trusted Control Plane"]
+    API["API / BFF\nAuthZ • Projects • Settings"]
+    AUTH["Identity + RBAC"]
+    TEMP["Temporal Workflow Orchestrator"]
+    AGENT["Agent Harness\nPlan → Act → Observe → Recover → Verify"]
+    CTX["Context Service\nSearch • LSP • summaries"]
+    MODEL["Model Gateway\nOpenAI-compatible / LiteLLM-style"]
+    TOOLS["Tool / MCP Gateway"]
+    SM["Sandbox Manager"]
+    GIT["GitHub Service\nGitHub App"]
+    DEPLOY["Deployment Service\nProvider adapters"]
+  end
+
+  subgraph DATA["State / Platform Services"]
+    PG["PostgreSQL"]
+    REDIS["Redis"]
+    BUS["Event Bus\nKafka / SQS / PubSub"]
+    OBJ["Object Storage\nlogs • traces • screenshots • artifacts"]
+    SECRETS["Secrets Manager + KMS"]
+    OBS["OpenTelemetry / Observability"]
+  end
+
+  subgraph EXEC["Isolated Execution Plane"]
+    DAEMON["Sandbox Daemon\nFS • exec • Git • logs • health"]
+    VM["Per-project Firecracker microVM\nrepo • terminal • dev server • tests"]
+  end
+
+  subgraph EXT["External Systems"]
+    LLMS["OpenAI • Anthropic • Gemini\nBedrock • Open-source models"]
+    GH["GitHub"]
+    INTS["Supabase • Stripe • Slack • S3 • MCP"]
+    HOST["Vercel • Cloudflare • AWS • others"]
+  end
+
+  WEB -->|HTTPS| CDN --> API
+  WEB -->|Run events| STREAM
+  WEB -->|Live app| PREVIEW
+
+  API --> AUTH
+  API --> PG
+  API --> REDIS
+  API --> TEMP
+  TEMP --> AGENT
+  TEMP --> SM
+  TEMP --> BUS
+
+  AGENT --> CTX
+  AGENT --> MODEL
+  AGENT --> TOOLS
+  AGENT --> SM
+  CTX --> SM
+
+  MODEL --> LLMS
+  TOOLS --> INTS
+  TOOLS --> SECRETS
+
+  SM -->|Signed control channel| DAEMON --> VM
+  VM -->|Dev server port| PREVIEW
+  DAEMON -->|stdout/tests/fs events| BUS
+  BUS --> STREAM
+  BUS --> OBJ
+
+  API --> GIT --> GH
+  AGENT --> GIT
+  API --> DEPLOY --> HOST
+  TEMP --> DEPLOY
+  DEPLOY --> SECRETS
+
+  API -. telemetry .-> OBS
+  AGENT -. telemetry .-> OBS
+  PREVIEW -. telemetry .-> OBS
+  DEPLOY -. telemetry .-> OBS
